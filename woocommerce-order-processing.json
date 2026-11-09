@@ -1,0 +1,499 @@
+{
+  "name": "WooCommerce order processing",
+  "nodes": [
+    {
+      "id": "2b62753e-0b2d-4c97-acb4-03ca420b40ce",
+      "name": "New WooCommerce order",
+      "type": "n8n-nodes-base.wooCommerceTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "event": "order.created"
+      },
+      "webhookId": "b06d0964-cd04-472e-a04c-82e0811d4808"
+    },
+    {
+      "id": "5c013a9f-00dc-49f1-8f56-632825e0bc46",
+      "name": "Prepare order data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "o1",
+              "name": "order_id",
+              "value": "={{ String($json.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "o2",
+              "name": "order_number",
+              "value": "={{ String($json.number || $json.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "o3",
+              "name": "date",
+              "value": "={{ $json.date_created || $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "o4",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "o5",
+              "name": "customer",
+              "value": "={{ (($json.billing?.first_name || \"\") + \" \" + ($json.billing?.last_name || \"\")).trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "o6",
+              "name": "first_name",
+              "value": "={{ $json.billing?.first_name || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "o7",
+              "name": "email",
+              "value": "={{ ($json.billing?.email || \"\").trim().toLowerCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "o8",
+              "name": "phone",
+              "value": "={{ $json.billing?.phone || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "o9",
+              "name": "items",
+              "value": "={{ ($json.line_items || []).map(i => i.quantity + \" x \" + i.name).join(\", \") }}",
+              "type": "string"
+            },
+            {
+              "id": "o10",
+              "name": "items_html",
+              "value": "={{ ($json.line_items || []).map(i => \"<li>\" + i.quantity + \" x \" + i.name + \" : \" + i.total + \" \" + $json.currency + \"</li>\").join(\"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "o11",
+              "name": "total",
+              "value": "={{ $json.total }}",
+              "type": "string"
+            },
+            {
+              "id": "o12",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "o13",
+              "name": "payment_method",
+              "value": "={{ $json.payment_method_title || $json.payment_method || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "o14",
+              "name": "shipping_address",
+              "value": "={{ [$json.shipping?.address_1, $json.shipping?.address_2, $json.shipping?.postcode, $json.shipping?.city, $json.shipping?.country].filter(Boolean).join(\", \") }}",
+              "type": "string"
+            },
+            {
+              "id": "o15",
+              "name": "is_paid",
+              "value": "={{ [\"processing\", \"completed\"].includes($json.status) }}",
+              "type": "boolean"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "91f9b8d2-7d83-413a-b981-710a9e2a43fa",
+      "name": "Log order in Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "authentication": "oAuth2",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "WooCommerce Orders"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "order_number": "={{ $json.order_number }}",
+            "date": "={{ $json.date }}",
+            "status": "={{ $json.status }}",
+            "customer": "={{ $json.customer }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "items": "={{ $json.items }}",
+            "total": "={{ $json.total }}",
+            "currency": "={{ $json.currency }}",
+            "payment_method": "={{ $json.payment_method }}",
+            "shipping_address": "={{ $json.shipping_address }}"
+          },
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "order_number",
+              "displayName": "order_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items",
+              "displayName": "items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "payment_method",
+              "displayName": "payment_method",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shipping_address",
+              "displayName": "shipping_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "34bde090-a8de-4440-9f8e-f1104c38c287",
+      "name": "Is the order paid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Prepare order data\").item.json.is_paid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "8121c679-ccc7-4aa2-971f-f4eecb555c82",
+      "name": "Send confirmation to customer",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "My Shop <shop@example.com>",
+        "toEmail": "={{ $(\"Prepare order data\").item.json.email }}",
+        "subject": "=Order #{{ $(\"Prepare order data\").item.json.order_number }} confirmed",
+        "emailFormat": "html",
+        "html": "=<p>Hello {{ $(\"Prepare order data\").item.json.first_name }},</p><p>Thank you for your order <strong>#{{ $(\"Prepare order data\").item.json.order_number }}</strong>. We have received your payment and are preparing your package.</p><ul>{{ $(\"Prepare order data\").item.json.items_html }}</ul><p><strong>Total: {{ $(\"Prepare order data\").item.json.total }} {{ $(\"Prepare order data\").item.json.currency }}</strong></p><p>Shipping address: {{ $(\"Prepare order data\").item.json.shipping_address }}</p><p>You will receive another email when your order ships.</p><p>Best regards,<br>The shop team</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "4e9a5024-a66c-495e-9360-9de9ce4e953a"
+    },
+    {
+      "id": "75dc9390-4123-43db-9167-aa8130a86ac4",
+      "name": "Notify shop owner: new paid order",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "My Shop <shop@example.com>",
+        "toEmail": "owner@example.com",
+        "subject": "=New paid order #{{ $(\"Prepare order data\").item.json.order_number }}: {{ $(\"Prepare order data\").item.json.total }} {{ $(\"Prepare order data\").item.json.currency }}",
+        "emailFormat": "html",
+        "html": "=<p><strong>New paid order #{{ $(\"Prepare order data\").item.json.order_number }}</strong></p><p>Customer: {{ $(\"Prepare order data\").item.json.customer }} ({{ $(\"Prepare order data\").item.json.email }}, {{ $(\"Prepare order data\").item.json.phone }})</p><ul>{{ $(\"Prepare order data\").item.json.items_html }}</ul><p>Total: {{ $(\"Prepare order data\").item.json.total }} {{ $(\"Prepare order data\").item.json.currency }} via {{ $(\"Prepare order data\").item.json.payment_method }}</p><p>Ship to: {{ $(\"Prepare order data\").item.json.shipping_address }}</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "56593160-a17c-4f50-92a3-136bc2ed3b98"
+    },
+    {
+      "id": "050e4011-4a4a-430c-898f-b1d47c56abf7",
+      "name": "Mark order as processed by n8n",
+      "type": "n8n-nodes-base.wooCommerce",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "resource": "order",
+        "operation": "update",
+        "orderId": "={{ $(\"Prepare order data\").item.json.order_id }}",
+        "updateFields": {},
+        "metadataUi": {
+          "metadataValues": [
+            {
+              "key": "_n8n_processed_at",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1f939d6b-af9b-40cf-ae67-b554d246180e",
+      "name": "Notify shop owner: order awaiting payment",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        192
+      ],
+      "parameters": {
+        "fromEmail": "My Shop <shop@example.com>",
+        "toEmail": "owner@example.com",
+        "subject": "=Order #{{ $(\"Prepare order data\").item.json.order_number }} awaiting payment ({{ $(\"Prepare order data\").item.json.status }})",
+        "emailFormat": "html",
+        "html": "=<p>Order <strong>#{{ $(\"Prepare order data\").item.json.order_number }}</strong> was created with status <strong>{{ $(\"Prepare order data\").item.json.status }}</strong>.</p><p>Customer: {{ $(\"Prepare order data\").item.json.customer }} ({{ $(\"Prepare order data\").item.json.email }})</p><p>Total: {{ $(\"Prepare order data\").item.json.total }} {{ $(\"Prepare order data\").item.json.currency }} via {{ $(\"Prepare order data\").item.json.payment_method }}</p><p>Check the payment before shipping.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "3dc43bd2-e4e1-4b41-8835-3ae97b7116b4"
+    },
+    {
+      "id": "887fcad3-eb54-4931-8f0d-4ba2475e963b",
+      "name": "Note: how it works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ],
+      "parameters": {
+        "content": "## WooCommerce order processing\n1. A new order arrives from WooCommerce\n2. It is logged in Google Sheets\n3. Paid orders (processing / completed): confirmation email to the customer, alert to the shop owner, order tagged as processed\n4. Unpaid orders (pending / on-hold): alert to the shop owner to check the payment\n\n**Before activating:** replace shop@example.com and owner@example.com in the 3 email nodes.",
+        "width": 700,
+        "height": 280,
+        "color": 4
+      }
+    }
+  ],
+  "connections": {
+    "New WooCommerce order": {
+      "main": [
+        [
+          {
+            "node": "Prepare order data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare order data": {
+      "main": [
+        [
+          {
+            "node": "Log order in Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log order in Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Is the order paid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is the order paid?": {
+      "main": [
+        [
+          {
+            "node": "Send confirmation to customer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify shop owner: order awaiting payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send confirmation to customer": {
+      "main": [
+        [
+          {
+            "node": "Notify shop owner: new paid order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify shop owner: new paid order": {
+      "main": [
+        [
+          {
+            "node": "Mark order as processed by n8n",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
